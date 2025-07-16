@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>业务完成率分析仪表板</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segui UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-left: 5px solid;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+
+        .stat-card.excellent { border-left-color: #7ED321; }
+        .stat-card.good { border-left-color: #F5A623; }
+        .stat-card.poor { border-left-color: #FF6B6B; }
+        .stat-card.none { border-left-color: #E5E7EB; }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .stat-title {
+            font-size: 1rem;
+            color: #374151;
+            font-weight: 600;
+        }
+
+        .completion-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .completion-badge.excellent { 
+            background: #7ED321; 
+            color: white; 
+        }
+        .completion-badge.good { 
+            background: #F5A623; 
+            color: white; 
+        }
+        .completion-badge.poor { 
+            background: #FF6B6B; 
+            color: white; 
+        }
+        .completion-badge.none { 
+            background: #E5E7EB; 
+            color: #6B7280; 
+        }
+
+        .stat-numbers {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #6B7280;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #1F2937;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #F3F4F6;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.8s ease;
+        }
+
+        .progress-fill.excellent { background: linear-gradient(90deg, #7ED321, #6BC318); }
+        .progress-fill.good { background: linear-gradient(90deg, #F5A623, #E89611); }
+        .progress-fill.poor { background: linear-gradient(90deg, #FF6B6B, #FF5252); }
+        .progress-fill.none { background: #E5E7EB; }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .chart-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1F2937;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .chart-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(45deg, #4A90E2, #7ED321);
+            border-radius: 2px;
+            margin-right: 12px;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 350px;
+        }
+
+        .completion-overview {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .target-gap-card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .gap-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        .gap-item:last-child {
+            border-bottom: none;
+        }
+
+        .gap-label {
+            font-weight: 500;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+
+        .gap-value {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .gap-value.positive { color: #7ED321; }
+        .gap-value.negative { color: #FF6B6B; }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-numbers {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .insights-card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+
+        .insights-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1F2937;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .insights-title::before {
+            content: '💡';
+            margin-right: 10px;
+        }
+
+        .insight-item {
+            padding: 10px 0;
+            color: #374151;
+            line-height: 1.6;
+        }
+
+        .insight-item::before {
+            content: '•';
+            color: #4A90E2;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>2025年业务完成率分析</h1>
+            <p>实时监控各业务线目标达成情况</p>
+        </div>
+
+        <!-- 完成率统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card good">
+                <div class="stat-header">
+                    <div class="stat-title">物业租赁</div>
+                    <div class="completion-badge good">60%</div>
+                </div>
+                <div class="stat-numbers">
+                    <div class="stat-item">
+                        <div class="stat-label">已完成</div>
+                        <div class="stat-value">1,596万</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">目标</div>
+                        <div class="stat-value">2,654万</div>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill good" style="width: 60%"></div>
+                </div>
+            </div>
+
+            <div class="stat-card excellent">
+                <div class="stat-header">
+                    <div class="stat-title">生活服务</div>
+                    <div class="completion-badge excellent">70%</div>
+                </div>
+                <div class="stat-numbers">
+                    <div class="stat-item">
+                        <div class="stat-label">已完成</div>
+                        <div class="stat-value">258万</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">目标</div>
+                        <div class="stat-value">612万</div>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill excellent" style="width: 70%"></div>
+                </div>
+            </div>
+
+            <div class="stat-card none">
+                <div class="stat-header">
+                    <div class="stat-title">邻里中心</div>
+                    <div class="completion-badge none">0%</div>
+                </div>
+                <div class="stat-numbers">
+                    <div class="stat-item">
+                        <div class="stat-label">已完成</div>
+                        <div class="stat-value">0万</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">目标</div>
+                        <div class="stat-value">168万</div>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill none" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="stat-card poor">
+                <div class="stat-header">
+                    <div class="stat-title">营业收入总计</div>
+                    <div class="completion-badge poor">54%</div>
+                </div>
+                <div class="stat-numbers">
+                    <div class="stat-item">
+                        <div class="stat-label">已完成</div>
+                        <div class="stat-value">1,854万</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">目标</div>
+                        <div class="stat-value">3,434万</div>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill poor" style="width: 54%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-title">目标完成情况对比</div>
+                <div id="completionChart" class="chart-container"></div>
+            </div>
+
+            <div class="completion-overview">
+                <div class="target-gap-card">
+                    <div class="chart-title">剩余目标差距</div>
+                    <div class="gap-item">
+                        <span class="gap-label">物业租赁</span>
+                        <span class="gap-value negative">-1,058万</span>
+                    </div>
+                    <div class="gap-item">
+                        <span class="gap-label">生活服务</span>
+                        <span class="gap-value negative">-354万</span>
+                    </div>
+                    <div class="gap-item">
+                        <span class="gap-label">邻里中心</span>
+                        <span class="gap-value negative">-168万</span>
+                    </div>
+                    <div class="gap-item">
+                        <span class="gap-label">总计差距</span>
+                        <span class="gap-value negative">-1,580万</span>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-title">完成率排行</div>
+                    <div id="rankingChart" style="width: 100%; height: 250px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 关键洞察 -->
+        <div class="insights-card">
+            <div class="insights-title">关键洞察与建议</div>
+            <div class="insight-item">生活服务表现最佳，完成率达70%，可作为其他业务学习标杆</div>
+            <div class="insight-item">邻里中心业务尚未启动，需要尽快制定启动计划和时间表</div>
+            <div class="insight-item">物业租赁虽然完成率60%，但绝对金额最大，还需努力1,058万</div>
+            <div class="insight-item">整体目标完成率54%，距离年度目标还有1,580万的差距</div>
+            <div class="insight-item">建议重点关注邻里中心业务启动和物业租赁收入提升</div>
+        </div>
+    </div>
+
+    <script>
+        // 明亮配色方案
+        const brightColors = {
+            excellent: '#7ED321',
+            good: '#F5A623', 
+            poor: '#FF6B6B',
+            none: '#E5E7EB',
+            primary: '#4A90E2',
+            background: '#F8FAFC'
+        };
+
+        // 数据
+        const businessData = {
+            categories: ['物业租赁', '生活服务', '邻里中心', '营业收入'],
+            current: [1596, 258, 0, 1854],
+            targets: [2654, 612, 168, 3434],
+            completionRates: [60, 70, 0, 54]
+        };
+
+        // 初始化完成情况对比图表
+        function initCompletionChart() {
+            const chart = echarts.init(document.getElementById('completionChart'));
+            
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    },
+                    backgroundColor: 'rgba(255,255,255,0.95)',
+                    borderColor: '#E5E7EB',
+                    borderWidth: 1,
+                    textStyle: {
+                        color: '#374151'
+                    }
+                },
+                legend: {
+                    data: ['已完成', '目标'],
+                    top: 0,
+                    textStyle: {
+                        color: '#374151',
+                        fontSize: 12
+                    }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '8%',
+                    top: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: businessData.categories,
+                    axisTick: {
+                        alignWithLabel: true
+                    },
+                    axisLine: {
+                        lineStyle: {
+                            color: '#E5E7EB'
+                        }
+                    },
+                    axisLabel: {
+                        color: '#6B7280',
+                        fontSize: 11
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: {
+                        show: false
+                    },
+                    axisTick: {
+                        show: false
+                    },
+                    axisLabel: {
+                        color: '#6B7280',
+                        fontSize: 11,
+                        formatter: '{value}万'
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: '#F3F4F6'
+                        }
+                    }
+                },
+                series: [
+                    {
+                        name: '已完成',
+                        type: 'bar',
+                        barWidth: '35%',
+                        data: businessData.current,
+                        itemStyle: {
+                            color: function(params) {
+                                const rate = businessData.completionRates[params.dataIndex];
+                                if (rate >= 70) return brightColors.excellent;
+                                if (rate >= 60) return brightColors.good;
+                                if (rate > 0) return brightColors.poor;
+                                return brightColors.none;
+                            },
+                            borderRadius: [4, 4, 0, 0]
+                        }
+                    },
+                    {
+                        name: '目标',
+                        type: 'bar',
+                        barWidth: '35%',
+                        data: businessData.targets,
+                        itemStyle: {
+                            color: brightColors.primary,
+                            borderRadius: [4, 4, 0, 0],
+                            opacity: 0.6
+                        }
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        // 初始化完成率排行图表
+        function initRankingChart() {
+            const chart = echarts.init(document.getElementById('rankingChart'));
+            
+            const sortedData = businessData.categories
+                .map((name, index) => ({
+                    name,
+                    rate: businessData.completionRates[index]
+                }))
+                .sort((a, b) => b.rate - a.rate);
+
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    },
+                    backgroundColor: 'rgba(255,255,255,0.95)',
+                    borderColor: '#E5E7EB',
+                    borderWidth: 1,
+                    formatter: '{b}: {c}%'
+                },
+                grid: {
+                    left: '15%',
+                    right: '10%',
+                    bottom: '10%',
+                    top: '5%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'value',
+                    max: 100,
+                    axisLine: {
+                        show: false
+                    },
+                    axisTick: {
+                        show: false
+                    },
+                    axisLabel: {
+                        color: '#6B7280',
+                        fontSize: 10,
+                        formatter: '{value}%'
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: '#F3F4F6'
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: sortedData.map(item => item.name),
+                    axisLine: {
+                        lineStyle: {
+                            color: '#E5E7EB'
+                        }
+                    },
+                    axisLabel: {
+                        color: '#6B7280',
+                        fontSize: 10
+                    }
+                },
+                series: [
+                    {
+                        type: 'bar',
+                        data: sortedData.map(item => ({
+                            value: item.rate,
+                            itemStyle: {
+                                color: item.rate >= 70 ? brightColors.excellent :
+                                       item.rate >= 60 ? brightColors.good :
+                                       item.rate > 0 ? brightColors.poor : brightColors.none,
+                                borderRadius: [0, 4, 4, 0]
+                            }
+                        })),
+                        barWidth: '60%'
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        // 页面加载完成后初始化图表
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                initCompletionChart();
+                initRankingChart();
+            }, 100);
+        });
+    </script>
+</body>
+</html>
